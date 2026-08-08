@@ -5,18 +5,22 @@ function Contact() {
   const [message, setMessage] = useState("");
 
   return (
-    <section id="contact">
-      <h2>Contact</h2>
-      <p>
-        <strong>Email:</strong>{" "}
-        <a href="mailto:urvivansh90@gmail.com">urvivansh90@gmail.com</a>
-      </p>
-      <p>
-        <strong>LinkedIn:</strong>{" "}
-        <a href="https://www.linkedin.com/in/urvi-vansh-b12906337/" target="_blank" rel="noreferrer">
-          urvi-vansh-b12906337
-        </a>
-      </p>
+    <section id="contact" className="page-section contact-section">
+      <div className="contact-copy">
+        <p className="section-label">Contact</p>
+        <h2>Let us connect.</h2>
+        <p>
+          I am open to learning opportunities, college project collaboration, and
+          feedback on my work.
+        </p>
+
+        <div className="contact-links">
+          <a href="mailto:urvivansh90@gmail.com">urvivansh90@gmail.com</a>
+          <a href="https://www.linkedin.com/in/urvi-vansh-b12906337/" target="_blank" rel="noreferrer">
+            LinkedIn profile
+          </a>
+        </div>
+      </div>
 
       <form
         className="contact-form"
@@ -47,13 +51,12 @@ function Contact() {
           required
         />
 
-        <button type="submit" className="theme-btn">Send Message</button>
+        <button type="submit" className="primary-action">Send Message</button>
 
-        <p>
+        <p className="form-preview">
           Live preview: <strong>{name || "Your name"}</strong> says {message || "your message"}
         </p>
       </form>
-      <hr />
     </section>
   );
 }

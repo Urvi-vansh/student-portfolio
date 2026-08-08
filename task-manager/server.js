@@ -1,10 +1,31 @@
 const express = require('express');
-const app = express();
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const Task = require('./models/Task');
 
-const tasks = [
-  { id: 1, title: 'Prepare lab report', completed: false },
-  { id: 2, title: 'Review Node.js concepts', completed: true },
+dotenv.config();
+
+const app = express();
+const memoryTasks = [
+  { id: 1, title: 'Prepare lab report', description: '', completed: false, priority: 'medium', createdAt: new Date() },
+  { id: 2, title: 'Review Node.js concepts', description: '', completed: true, priority: 'high', createdAt: new Date() },
 ];
+let nextMemoryId = 3;
+
+app.use((req, res, next) => {
+  const allowedOrigins = ['http://127.0.0.1:5173', 'http://localhost:5173'];
+  const origin = allowedOrigins.includes(req.headers.origin) ? req.headers.origin : allowedOrigins[0];
+
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 app.use(express.json());
 
@@ -20,84 +41,158 @@ app.use((req, res, next) => {
   next();
 });
 
-app.param('id', (req, res, next, id) => {
-  if (!/^\d+$/.test(id)) {
-    return res.status(400).json({ error: 'Task ID must be a numeric value' });
+const serializeTask = (task) => {
+  if (task && typeof task.toObject === 'function') {
+    const plainTask = task.toObject();
+    const serializedTask = { ...plainTask };
+    serializedTask.id = plainTask._id ? plainTask._id.toString() : serializedTask.id;
+    delete serializedTask._id;
+    delete serializedTask.__v;
+    return serializedTask;
   }
-  next();
-});
+
+  return task;
+};
+
+const listTasks = async () => {
+  if (mongoose.connection.readyState === 1) {
+    const tasks = await Task.find().sort({ createdAt: -1 });
+    return tasks.map(serializeTask);
+  }
+
+  return memoryTasks.map((task) => ({ ...task }));
+};
+
+const getTaskById = async (taskId) => {
+  if (mongoose.connection.readyState === 1) {
+    const task = await Task.findById(taskId);
+    return task ? serializeTask(task) : null;
+  }
+
+  return memoryTasks.find((task) => task.id === Number(taskId)) || null;
+};
+
+const createTask = async (payload) => {
+  if (mongoose.connection.readyState === 1) {
+    return serializeTask(await Task.create(payload));
+  }
+
+  const task = {
+    id: nextMemoryId++,
+    title: payload.title?.trim() || '',
+    description: payload.description || '',
+    completed: Boolean(payload.completed),
+    priority: payload.priority || 'medium',
+    createdAt: new Date(),
+  };
+
+  memoryTasks.push(task);
+  return task;
+};
+
+const updateTask = async (taskId, payload) => {
+  if (mongoose.connection.readyState === 1) {
+    const task = await Task.findByIdAndUpdate(taskId, payload, {
+      new: true,
+      runValidators: true,
+    });
+
+    return task ? serializeTask(task) : null;
+  }
+
+  const task = memoryTasks.find((item) => item.id === Number(taskId));
+  if (!task) return null;
+
+  Object.assign(task, payload);
+  return { ...task };
+};
+
+const deleteTask = async (taskId) => {
+  if (mongoose.connection.readyState === 1) {
+    const task = await Task.findByIdAndDelete(taskId);
+    return task ? serializeTask(task) : null;
+  }
+
+  const index = memoryTasks.findIndex((item) => item.id === Number(taskId));
+  if (index === -1) return null;
+
+  const [deletedTask] = memoryTasks.splice(index, 1);
+  return deletedTask;
+};
 
 app.get('/', (req, res) => {
   res.status(200).json({ message: 'Task Manager API is running' });
 });
 
-app.get('/tasks', (req, res) => {
-  res.status(200).json(tasks);
-});
-
-app.post('/tasks', (req, res, next) => {
+app.get('/tasks', async (req, res, next) => {
   try {
-    const { title, completed = false } = req.body || {};
-
-    if (!title || typeof title !== 'string' || title.trim() === '') {
-      return res.status(400).json({ error: 'Task title is required' });
-    }
-
-    const task = {
-      id: tasks.length ? tasks[tasks.length - 1].id + 1 : 1,
-      title: title.trim(),
-      completed,
-    };
-
-    tasks.push(task);
-    return res.status(201).json(task);
+    const tasks = await listTasks();
+    res.status(200).json(tasks);
   } catch (error) {
     next(error);
   }
 });
 
-app.put('/tasks/:id', (req, res, next) => {
+app.get('/tasks/:id', async (req, res, next) => {
   try {
-    const taskId = Number(req.params.id);
-    const task = tasks.find((item) => item.id === taskId);
+    const task = await getTaskById(req.params.id);
 
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    const { title, completed } = req.body || {};
-
-    if (title !== undefined) {
-      if (typeof title !== 'string' || title.trim() === '') {
-        return res.status(400).json({ error: 'Task title is required' });
-      }
-      task.title = title.trim();
-    }
-
-    if (completed !== undefined) {
-      if (typeof completed !== 'boolean') {
-        return res.status(400).json({ error: 'Completed must be a boolean' });
-      }
-      task.completed = completed;
-    }
-
-    return res.status(200).json(task);
+    res.status(200).json(task);
   } catch (error) {
     next(error);
   }
 });
 
-app.delete('/tasks/:id', (req, res, next) => {
+app.post('/tasks', async (req, res, next) => {
   try {
-    const taskId = Number(req.params.id);
-    const index = tasks.findIndex((item) => item.id === taskId);
+    const task = await createTask(req.body);
+    res.status(201).json(task);
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: Object.values(error.errors).map((item) => item.message),
+      });
+    }
 
-    if (index === -1) {
+    next(error);
+  }
+});
+
+app.put('/tasks/:id', async (req, res, next) => {
+  try {
+    const task = await updateTask(req.params.id, req.body);
+
+    if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    const [deletedTask] = tasks.splice(index, 1);
-    return res.status(200).json({ message: 'Task deleted successfully', task: deletedTask });
+    res.status(200).json(task);
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: Object.values(error.errors).map((item) => item.message),
+      });
+    }
+
+    next(error);
+  }
+});
+
+app.delete('/tasks/:id', async (req, res, next) => {
+  try {
+    const task = await deleteTask(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    res.status(200).json({ message: 'Task deleted successfully', task });
   } catch (error) {
     next(error);
   }
@@ -107,16 +202,32 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found', path: req.originalUrl });
 });
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error(err.stack || err.message);
   res.status(err.status || 500).json({ error: err.message || 'Something went wrong' });
 });
 
+const connectToDatabase = async () => {
+  if (!process.env.MONGO_URI) {
+    console.warn('MONGO_URI not set. Running with in-memory fallback storage.');
+    return;
+  }
+
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('MongoDB connected');
+  } catch (error) {
+    console.error('MongoDB connection error:', error.message);
+  }
+};
+
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  connectToDatabase().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   });
 }
 
-module.exports = { app, tasks };
+module.exports = { app, Task };

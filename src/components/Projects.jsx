@@ -35,12 +35,12 @@ function Projects() {
   }, []);
 
   return (
-    <section id="projects">
-      <h2>Projects</h2>
+    <section id="projects" className="page-section">
+      <p className="section-label">Projects</p>
+      <h2>Recent GitHub work.</h2>
       <p className="section-intro">
-        This section dynamically pulls the latest public GitHub repositories for the profile
-        and displays them as project highlights. Each item includes the repository name,
-        description, and a direct link to view the code on GitHub.
+        Live repositories from my GitHub profile, shown with descriptions, language,
+        stars, and update dates.
       </p>
 
       {loading && <LoadingSpinner />}
@@ -56,13 +56,16 @@ function Projects() {
 
               return (
                 <article className="card" key={repo.id}>
-                  <h3>{repo.name}</h3>
+                  <div className="card-top">
+                    <h3>{repo.name}</h3>
+                    <span>{repo.language || "Code"}</span>
+                  </div>
                   <p>{repositoryDescription}</p>
                   <p className="repo-meta">
-                    {repo.language ? `${repo.language} • ` : ""}
-                    ⭐ {repo.stargazers_count} • Updated {new Date(repo.updated_at).toLocaleDateString()}
+                    Stars {repo.stargazers_count} | Updated{" "}
+                    {new Date(repo.updated_at).toLocaleDateString()}
                   </p>
-                  <a href={repo.html_url} target="_blank" rel="noreferrer">
+                  <a className="repo-link" href={repo.html_url} target="_blank" rel="noreferrer">
                     View repository
                   </a>
                 </article>
@@ -73,8 +76,6 @@ function Projects() {
           )}
         </div>
       )}
-
-      <hr />
     </section>
   );
 }

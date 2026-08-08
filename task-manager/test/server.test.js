@@ -53,3 +53,25 @@ test('POST /tasks rejects requests without application/json content type', async
     server.close();
   }
 });
+
+test('GET /tasks/:id returns the created task', async () => {
+  const server = app.listen(0);
+
+  try {
+    const { port } = server.address();
+    const createResponse = await fetch(`http://127.0.0.1:${port}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Read task by id' }),
+    });
+    const createdTask = await createResponse.json();
+
+    const response = await fetch(`http://127.0.0.1:${port}/tasks/${createdTask.id}`);
+    const data = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(data.title, 'Read task by id');
+  } finally {
+    server.close();
+  }
+});

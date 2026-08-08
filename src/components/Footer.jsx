@@ -1,7 +1,7 @@
 function Footer() {
   return (
     <footer>
-      <p>© 2026 Urvi Vansh</p>
+      <p>Copyright 2026 Urvi Vansh. Built with React.</p>
     </footer>
   );
 }
