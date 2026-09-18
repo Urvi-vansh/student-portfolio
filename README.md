@@ -13,6 +13,9 @@ The app uses route-based code splitting with `React.lazy()` and `Suspense` for
 the Skills, Projects, Tasks, and Contact routes. Build and measurement notes are
 available in [PERFORMANCE-LAB.md](PERFORMANCE-LAB.md).
 
+The Task Manager backend caching practical is documented in
+[CACHE-LAB.md](CACHE-LAB.md).
+
 ## React Compiler
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).

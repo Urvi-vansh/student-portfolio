@@ -3,6 +3,14 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const Task = require('./models/Task');
+const {
+  allTasksKey,
+  cache,
+  getCached,
+  getMetrics,
+  invalidateTaskCaches,
+  taskKey,
+} = require('./cache');
 
 dotenv.config();
 
@@ -113,9 +121,23 @@ app.get('/', (req, res) => {
   res.status(200).json({ message: 'Task Manager API is running' });
 });
 
+app.get('/debug/cache', (req, res) => {
+  res.status(200).json(getMetrics());
+});
+
 app.get('/tasks', async (req, res, next) => {
   try {
+    const bypassCache = req.query.cache === 'false';
+
+    if (!bypassCache) {
+      const cachedTasks = getCached(allTasksKey, 'all');
+      if (cachedTasks !== undefined) {
+        return res.status(200).json(cachedTasks);
+      }
+    }
+
     const tasks = await listTasks();
+    if (!bypassCache) cache.set(allTasksKey, tasks);
     res.status(200).json(tasks);
   } catch (error) {
     next(error);
@@ -124,12 +146,19 @@ app.get('/tasks', async (req, res, next) => {
 
 app.get('/tasks/:id', async (req, res, next) => {
   try {
+    const key = taskKey(req.params.id);
+    const cachedTask = getCached(key, 'task');
+    if (cachedTask !== undefined) {
+      return res.status(200).json(cachedTask);
+    }
+
     const task = await getTaskById(req.params.id);
 
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
 
+    cache.set(key, task);
     res.status(200).json(task);
   } catch (error) {
     next(error);
@@ -139,6 +168,7 @@ app.get('/tasks/:id', async (req, res, next) => {
 app.post('/tasks', async (req, res, next) => {
   try {
     const task = await createTask(req.body);
+    invalidateTaskCaches();
     res.status(201).json(task);
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -160,6 +190,7 @@ app.put('/tasks/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
+    invalidateTaskCaches();
     res.status(200).json(task);
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -181,6 +212,7 @@ app.delete('/tasks/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
+    invalidateTaskCaches();
     res.status(200).json({ message: 'Task deleted successfully', task });
   } catch (error) {
     next(error);
