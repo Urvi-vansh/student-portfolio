@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const cors = require('cors');
 const Task = require('./models/Task');
 
 dotenv.config();
@@ -12,20 +13,8 @@ const memoryTasks = [
 ];
 let nextMemoryId = 3;
 
-app.use((req, res, next) => {
-  const allowedOrigins = ['http://127.0.0.1:5173', 'http://localhost:5173'];
-  const origin = allowedOrigins.includes(req.headers.origin) ? req.headers.origin : allowedOrigins[0];
-
-  res.header('Access-Control-Allow-Origin', origin);
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
+// Enable CORS for local frontend during development
+app.use(cors());
 
 app.use(express.json());
 

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-const API_URL = "http://localhost:5000/tasks";
+import { getTasks, createTask, updateTask as apiUpdateTask, deleteTask as apiDeleteTask } from "../api";
 
 const emptyForm = {
   title: "",
@@ -18,13 +17,7 @@ function TaskManager() {
   const loadTasks = async () => {
     try {
       setStatus("Loading tasks...");
-      const response = await fetch(API_URL);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to load tasks");
-      }
-
+      const data = await getTasks();
       setTasks(data);
       setStatus(data.length ? "Tasks loaded from backend." : "No tasks found. Add one below.");
     } catch (error) {
@@ -49,23 +42,30 @@ function TaskManager() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSaving(true);
-
     try {
-      const url = editingId ? `${API_URL}/${editingId}` : API_URL;
-      const response = await fetch(url, {
-        method: editingId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await response.json();
+      if (editingId) {
+        const saved = await apiUpdateTask(editingId, form);
+        setTasks((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
+        setStatus("Task updated successfully.");
+      } else {
+        // optimistic UI: add a temporary task immediately
+        const tempId = `temp-${Date.now()}`;
+        const tempTask = { id: tempId, ...form, completed: false, createdAt: new Date() };
+        setTasks((prev) => [tempTask, ...prev]);
 
-      if (!response.ok) {
-        throw new Error(data.details?.join(", ") || data.error || "Unable to save task");
+        try {
+          const saved = await createTask(form);
+          // replace temp with saved from server
+          setTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
+          setStatus("Task created successfully.");
+        } catch (err) {
+          // remove temp on failure
+          setTasks((prev) => prev.filter((t) => t.id !== tempId));
+          throw err;
+        }
       }
 
       resetForm();
-      await loadTasks();
-      setStatus(editingId ? "Task updated successfully." : "Task created successfully.");
     } catch (error) {
       setStatus(error.message);
     } finally {
@@ -84,18 +84,8 @@ function TaskManager() {
 
   const toggleCompleted = async (task) => {
     try {
-      const response = await fetch(`${API_URL}/${task.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed: !task.completed }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to update task");
-      }
-
-      await loadTasks();
+      const updated = await apiUpdateTask(task.id, { completed: !task.completed });
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       setStatus("Task status updated.");
     } catch (error) {
       setStatus(error.message);
@@ -103,15 +93,11 @@ function TaskManager() {
   };
 
   const deleteTask = async (taskId) => {
+    if (!window.confirm('Delete this task?')) return;
+
     try {
-      const response = await fetch(`${API_URL}/${taskId}`, { method: "DELETE" });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to delete task");
-      }
-
-      await loadTasks();
+      await apiDeleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
       setStatus("Task deleted successfully.");
     } catch (error) {
       setStatus(error.message);

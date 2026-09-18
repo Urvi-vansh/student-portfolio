@@ -358,6 +358,39 @@ section {
   border-top: 1px solid var(--border);
 }
 
+.page-loading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 360px;
+  padding: 58px 0;
+  border-top: 1px solid var(--border);
+}
+
+.page-loading p {
+  margin-bottom: 0;
+}
+
+.page-loading .section-label {
+  margin-bottom: 6px;
+}
+
+.page-loading-spinner {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: page-loading-spin 0.8s linear infinite;
+}
+
+@keyframes page-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .section-intro {
   max-width: 680px;
   margin-bottom: 24px;

@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link, NavLink, Route, Routes } from "react-router-dom";
 import Header from "./components/Header";
 import About from "./components/About";
-import Skills from "./components/Skills";
-import Projects from "./components/Projects";
-import TaskManager from "./components/TaskManager";
-import Contact from "./components/Contact";
 import Footer from "./components/Footer";
 import "./App.css";
+
+const Skills = lazy(() => import("./components/Skills"));
+const Projects = lazy(() => import("./components/Projects"));
+const TaskManager = lazy(() => import("./components/TaskManager"));
+const Contact = lazy(() => import("./components/Contact"));
 
 function HomePage() {
   return (
@@ -32,6 +33,18 @@ function TasksPage() {
 
 function ContactPage() {
   return <Contact />;
+}
+
+function PageLoading() {
+  return (
+    <div className="page-loading" role="status" aria-live="polite">
+      <span className="page-loading-spinner" aria-hidden="true" />
+      <div>
+        <p className="section-label">Loading view</p>
+        <p>Preparing this page...</p>
+      </div>
+    </div>
+  );
 }
 
 function App() {
@@ -71,13 +84,15 @@ function App() {
           </button>
         </div>
 
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/skills" element={<SkillsPage skills={skills} />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-        </Routes>
+        <Suspense fallback={<PageLoading />}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/skills" element={<SkillsPage skills={skills} />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+          </Routes>
+        </Suspense>
 
         <Footer />
       </div>
