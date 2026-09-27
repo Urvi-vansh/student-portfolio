@@ -63,17 +63,19 @@ Example debug response:
 
 ## Response-Time Measurement
 
-The following readings were captured on 2026-09-18 with the local API and MongoDB connection running. PowerShell `Measure-Command` measured the complete local HTTP request. The uncached readings used the explicit bypass query parameter; the cached readings followed one warm-up request.
+The following readings were captured on 2026-09-27 with the local API and MongoDB connection running. PowerShell `Stopwatch` measured each complete local HTTP request. The uncached readings used `?cache=false`; cached readings followed one warm-up request. These are machine-specific observations and include local HTTP client overhead.
 
 | Condition | Reading 1 | Reading 2 | Reading 3 | Average |
 | --- | ---: | ---: | ---: | ---: |
-| Uncached (`GET /tasks?cache=false`) | 40.47 ms | 3.94 ms | 4.74 ms | 16.38 ms |
-| Cached (`GET /tasks`) | 16.86 ms | 1.05 ms | 0.71 ms | 6.21 ms |
+| Uncached (`GET /tasks?cache=false`) | 146.00 ms | 23.86 ms | 22.10 ms | 63.99 ms |
+| Cached (`GET /tasks`, after warm-up) | 19.07 ms | 20.86 ms | 18.65 ms | 19.53 ms |
+
+The debug endpoint reported 3 all-task cache hits and 1 miss during this run. The first uncached request is noticeably slower, likely due to connection/query warm-up; small samples and a small dataset make averages noisy. Repeat the run in Postman or Thunder Client if your lab journal requires timings from that specific tool.
 
 For a reproducible browser/API-client check:
 
 1. Send `GET /tasks?cache=false` three times and record the response `Time` value.
-2. Clear the cache by restarting the server, send `GET /tasks` once to warm it, then send it three more times and record each `Time` value.
+2. Restart the server to clear the cache, send `GET /tasks` once to warm it, then send it three more times and record each `Time` value.
 3. Open `GET /debug/cache` and confirm the all-task hit counter increased.
 4. Create or update a task, request `GET /tasks` again, and confirm the response contains the new value. This proves write invalidation prevents stale data.
 
@@ -105,4 +107,4 @@ The single-task endpoint is cached independently from the all-task endpoint. The
 - [x] Invalidated caches after POST, PUT, and DELETE.
 - [x] Added cache hit/miss debug endpoint.
 - [x] Added automated cache and invalidation tests.
-- [ ] Record three Postman or Thunder Client timings for each condition and replace the measurement placeholders above.
+- [x] Record three local HTTP timings for each condition; optionally repeat in Postman or Thunder Client for lab-journal evidence.

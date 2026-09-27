@@ -69,9 +69,14 @@ test('GET /tasks/:id returns the created task', async () => {
 
     const response = await fetch(`http://127.0.0.1:${port}/tasks/${createdTask.id}`);
     const data = await response.json();
+    await fetch(`http://127.0.0.1:${port}/tasks/${createdTask.id}`);
+    const metricsResponse = await fetch(`http://127.0.0.1:${port}/debug/cache`);
+    const metrics = await metricsResponse.json();
 
     assert.equal(response.status, 200);
     assert.equal(data.title, 'Read task by id');
+    assert.equal(metrics.taskMisses, 1);
+    assert.equal(metrics.taskHits, 1);
   } finally {
     server.close();
   }
@@ -132,6 +137,39 @@ test('writes invalidate all-task and single-task caches', async () => {
     assert.equal(taskResponse.status, 200);
     assert.equal(tasks.find((item) => item.id === createdTask.id).title, 'Updated invalidation');
     assert.equal(task.title, 'Updated invalidation');
+  } finally {
+    server.close();
+  }
+});
+
+test('DELETE invalidates cached task and all-task responses', async () => {
+  resetCache();
+  const server = app.listen(0);
+
+  try {
+    const { port } = server.address();
+    const url = `http://127.0.0.1:${port}`;
+    const createResponse = await fetch(`${url}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Delete cache test' }),
+    });
+    const createdTask = await createResponse.json();
+
+    await fetch(`${url}/tasks`);
+    await fetch(`${url}/tasks/${createdTask.id}`);
+
+    const deleteResponse = await fetch(`${url}/tasks/${createdTask.id}`, {
+      method: 'DELETE',
+    });
+    assert.equal(deleteResponse.status, 200);
+
+    const tasksResponse = await fetch(`${url}/tasks`);
+    const tasks = await tasksResponse.json();
+    const taskResponse = await fetch(`${url}/tasks/${createdTask.id}`);
+
+    assert.ok(!tasks.some((task) => task.id === createdTask.id));
+    assert.equal(taskResponse.status, 404);
   } finally {
     server.close();
   }
