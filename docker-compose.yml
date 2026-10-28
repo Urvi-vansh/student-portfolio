@@ -1,0 +1,66 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5001
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:5173/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    build:
+      context: ./task-manager
+      dockerfile: Dockerfile
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/taskdb
+      PORT: 5000
+      NODE_ENV: production
+    ports:
+      - "5001:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:5000/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:8
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

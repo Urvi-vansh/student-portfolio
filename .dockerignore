@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+dist
+coverage
+npm-debug.log*
+vite-dev.log
+vite-dev.err.log
+task-manager
+server.js
+models
+test

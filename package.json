@@ -1,23 +1,29 @@
 {
-  "name": "task-manager",
+  "name": "student-portfolio",
   "version": "1.0.0",
-  "description": "",
+  "private": true,
+  "description": "React portfolio and task manager application",
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
     "test": "node --test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.2",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.0",
-    "cors": "^2.8.5",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.3",
+    "vite": "^8.1.4"
   }
 }

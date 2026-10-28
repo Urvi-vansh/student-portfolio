@@ -16,6 +16,11 @@ available in [PERFORMANCE-LAB.md](PERFORMANCE-LAB.md).
 The Task Manager backend caching practical is documented in
 [CACHE-LAB.md](CACHE-LAB.md).
 
+## Containerization Practical
+
+Docker and Docker Compose instructions are documented in
+[CONTAINERIZATION-LAB.md](CONTAINERIZATION-LAB.md).
+
 ## React Compiler
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
