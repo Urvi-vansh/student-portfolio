@@ -1,0 +1,5 @@
+Place Urvi's portfolio photo in this folder as:
+
+profile.jpg
+
+The home page will automatically use /profile.jpg.
