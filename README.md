@@ -16,6 +16,28 @@ available in [PERFORMANCE-LAB.md](PERFORMANCE-LAB.md).
 The Task Manager backend caching practical is documented in
 [CACHE-LAB.md](CACHE-LAB.md).
 
+## CI/CD Practical
+
+The GitHub Actions workflow at `.github/workflows/ci.yml` runs the Task Manager
+backend tests on every push to `main`. It installs dependencies in
+`task-manager` and runs the existing Node.js test suite; a failed install or
+test marks the workflow run as failed.
+
+Run the same checks locally from the repository root with:
+
+```sh
+npm install --prefix task-manager
+npm test --prefix task-manager
+```
+
+To observe both outcomes for the lab demonstration, temporarily change an
+assertion in `task-manager/test/server.test.js` to an incorrect expected value
+and push that change to `main`. The test step should fail and report the
+assertion error. Restore the correct expectation and push again to see a
+passing run. A missing or incorrect test path is a separate failure: the test
+runner reports that it cannot find or run the tests, rather than reporting a
+failed assertion.
+
 ## Containerization Practical
 
 Docker and Docker Compose instructions are documented in
