@@ -28,10 +28,18 @@ export const updateTask = (id, payload) =>
 export const deleteTask = (id) =>
   fetch(`${BASE_URL}/tasks/${id}`, { method: 'DELETE' }).then(handleResponse);
 
+export const generateTaskDescription = (title) =>
+  fetch(`${BASE_URL}/api/ai/generate-description`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  }).then(handleResponse);
+
 export default {
   getTasks,
   getTask,
   createTask,
   updateTask,
   deleteTask,
+  generateTaskDescription,
 };

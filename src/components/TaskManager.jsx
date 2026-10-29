@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { getTasks, createTask, updateTask as apiUpdateTask, deleteTask as apiDeleteTask } from "../api";
+import {
+  getTasks,
+  createTask,
+  updateTask as apiUpdateTask,
+  deleteTask as apiDeleteTask,
+  generateTaskDescription,
+} from "../api";
 
 const emptyForm = {
   title: "",
@@ -13,6 +19,8 @@ function TaskManager() {
   const [editingId, setEditingId] = useState(null);
   const [status, setStatus] = useState("Loading tasks...");
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
 
   const loadTasks = async () => {
     try {
@@ -34,9 +42,28 @@ function TaskManager() {
     setForm((currentForm) => ({ ...currentForm, [name]: value }));
   };
 
+  const handleGenerateDescription = async () => {
+    setIsGeneratingDescription(true);
+    setAiMessage("");
+    try {
+      const result = await generateTaskDescription(form.title);
+      if (result.fallback) {
+        setAiMessage(result.message);
+      } else {
+        setForm((currentForm) => ({ ...currentForm, description: result.description }));
+        setAiMessage("AI suggestion added. Review and edit it before saving.");
+      }
+    } catch (error) {
+      setAiMessage(error.message);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   const resetForm = () => {
     setForm(emptyForm);
     setEditingId(null);
+    setAiMessage("");
   };
 
   const handleSubmit = async (event) => {
@@ -125,6 +152,7 @@ function TaskManager() {
             onChange={handleChange}
             placeholder="Enter task title"
             required
+            disabled={isGeneratingDescription}
           />
 
           <label htmlFor="task-description">Description</label>
@@ -134,7 +162,24 @@ function TaskManager() {
             value={form.description}
             onChange={handleChange}
             placeholder="Enter task description"
+            aria-describedby="ai-description-disclaimer"
+            disabled={isGeneratingDescription}
           />
+          <div className="ai-description-controls">
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={handleGenerateDescription}
+              disabled={isGeneratingDescription || !form.title.trim()}
+            >
+              {isGeneratingDescription ? "Generating..." : "Generate description"}
+            </button>
+            <p id="ai-description-disclaimer" className="ai-disclaimer">
+              AI-generated suggestions may be inaccurate. Review and edit before saving;
+              only the task title is sent to the AI service.
+            </p>
+            {aiMessage && <p className="ai-message" role="status">{aiMessage}</p>}
+          </div>
 
           <label htmlFor="task-priority">Priority</label>
           <select
@@ -142,6 +187,7 @@ function TaskManager() {
             name="priority"
             value={form.priority}
             onChange={handleChange}
+            disabled={isGeneratingDescription}
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -149,11 +195,20 @@ function TaskManager() {
           </select>
 
           <div className="task-form-actions">
-            <button className="primary-action" type="submit" disabled={isSaving}>
+            <button
+              className="primary-action"
+              type="submit"
+              disabled={isSaving || isGeneratingDescription}
+            >
               {isSaving ? "Saving..." : editingId ? "Update" : "Create"}
             </button>
             {editingId && (
-              <button className="secondary-action" type="button" onClick={resetForm}>
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={resetForm}
+                disabled={isGeneratingDescription}
+              >
                 Cancel
               </button>
             )}

@@ -16,6 +16,25 @@ available in [PERFORMANCE-LAB.md](PERFORMANCE-LAB.md).
 The Task Manager backend caching practical is documented in
 [CACHE-LAB.md](CACHE-LAB.md).
 
+## AI Description Practical
+
+The Task Manager can generate an editable description from a task title using
+the OpenAI or Gemini API. The browser only calls the Express backend; provider
+API keys stay server-side and must never be added to frontend variables such as
+`VITE_*` or committed to Git. If both keys are configured, Gemini is used.
+
+For local development, set `GEMINI_API_KEY` (or `OPENAI_API_KEY`) in
+`task-manager/.env` (see `task-manager/.env.example`) and start the backend
+from `task-manager`. With Docker Compose, put the key in the repository-root
+`.env` file (see `.env.example`) before running `docker compose up --build`.
+Without a key, or if the AI service fails or times out, the task form remains
+usable and shows a fallback message. Generation is limited to one request per
+client and task title per minute.
+
+Only the task title is sent to the external AI provider. Do not send personal,
+sensitive, confidential, or identifying information; review AI suggestions
+before saving or relying on them.
+
 ## CI/CD Practical
 
 The GitHub Actions workflow at `.github/workflows/ci.yml` runs the Task Manager

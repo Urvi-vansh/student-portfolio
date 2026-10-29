@@ -20,6 +20,8 @@ const memoryTasks = [
   { id: 2, title: 'Review Node.js concepts', description: '', completed: true, priority: 'high', createdAt: new Date() },
 ];
 let nextMemoryId = 3;
+const AI_RATE_LIMIT_MS = 60 * 1000;
+const aiRequests = new Map();
 
 // Enable CORS for local frontend during development
 app.use(cors());
@@ -119,6 +121,128 @@ const deleteTask = async (taskId) => {
 
 app.get('/', (req, res) => {
   res.status(200).json({ message: 'Task Manager API is running' });
+});
+
+app.post('/api/ai/generate-description', async (req, res) => {
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+
+  if (!title || title.length > 200) {
+    return res.status(400).json({ error: 'Task title must be between 1 and 200 characters' });
+  }
+
+  const normalizedTitle = title.toLowerCase().replace(/\s+/g, ' ');
+  const rateLimitKey = `${req.ip}:${normalizedTitle}`;
+  const now = Date.now();
+
+  for (const [key, requestTime] of aiRequests) {
+    if (now - requestTime >= AI_RATE_LIMIT_MS) aiRequests.delete(key);
+  }
+
+  const previousRequest = aiRequests.get(rateLimitKey);
+  if (previousRequest !== undefined && now - previousRequest < AI_RATE_LIMIT_MS) {
+    return res.status(429).json({
+      error: 'Please wait one minute before generating another description for this task.',
+    });
+  }
+
+  aiRequests.set(rateLimitKey, now);
+
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey && !process.env.OPENAI_API_KEY) {
+    console.warn('No AI API key set. Returning an AI description fallback.');
+    return res.status(200).json({
+      description: '',
+      fallback: true,
+      message: 'AI suggestions are unavailable. You can write the description yourself.',
+    });
+  }
+
+  if (geminiApiKey) {
+    try {
+      const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': geminiApiKey,
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `Write a concise, practical task description based only on this task title: ${title}`,
+              }],
+            }],
+            generationConfig: { maxOutputTokens: 120 },
+          }),
+          signal: AbortSignal.timeout(30_000),
+        },
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        const providerMessage = errorBody?.error?.message;
+        throw new Error(
+          `Gemini request failed with status ${response.status}${providerMessage ? `: ${providerMessage}` : ''}`,
+        );
+      }
+
+      const completion = await response.json();
+      const description = completion.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || '')
+        .join('')
+        .trim();
+      if (!description) throw new Error('Gemini response did not include a description');
+
+      return res.status(200).json({ description, fallback: false });
+    } catch (error) {
+      console.error('Gemini description generation failed:', error.message);
+      return res.status(200).json({
+        description: '',
+        fallback: true,
+        message: 'AI suggestions are unavailable right now. You can write the description yourself.',
+      });
+    }
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: `Write a concise, practical task description based only on this task title: ${title}`,
+          },
+        ],
+        max_tokens: 120,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI request failed with status ${response.status}`);
+    }
+
+    const completion = await response.json();
+    const description = completion.choices?.[0]?.message?.content?.trim();
+    if (!description) throw new Error('OpenAI response did not include a description');
+
+    return res.status(200).json({ description, fallback: false });
+  } catch (error) {
+    console.error('AI description generation failed:', error.message);
+    return res.status(200).json({
+      description: '',
+      fallback: true,
+      message: 'AI suggestions are unavailable right now. You can write the description yourself.',
+    });
+  }
 });
 
 app.get('/debug/cache', (req, res) => {
@@ -251,4 +375,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, Task };
+module.exports = { app, Task, aiRequests };
